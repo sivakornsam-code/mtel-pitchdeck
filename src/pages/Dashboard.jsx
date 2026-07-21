@@ -237,34 +237,55 @@ function ThemeTab({ children, active, onClick, c, title }) {
 
 function DeckCardSkeleton({ dark, delay = '0ms' }) {
   const c = theme(dark)
-  const fill = { background: dark ? '#252525' : '#ebebeb' }
+  const fill = { background: dark ? '#2a2a2a' : '#e8e8e8' }
   return (
     <div
-      className="flex flex-col overflow-hidden animate-pulse"
-      style={{ background: c.card, border: `1px solid ${c.borderLight}`, animationDelay: delay }}
+      className="flex flex-col overflow-hidden"
+      style={{
+        background: c.card,
+        border: `1px solid ${c.border}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
     >
       {/* Thumbnail */}
-      <div style={{ aspectRatio: '16/9', ...fill }} />
+      <div
+        className="relative"
+        style={{ aspectRatio: '16/9', overflow: 'hidden', background: c.surface }}
+      >
+        <div className="thumb-shimmer absolute inset-0" style={{ animationDelay: delay }} />
+      </div>
 
       {/* Body */}
-      <div className="flex flex-col gap-3 p-4 flex-1">
-        <div style={{ height: 13, width: '58%', ...fill }} />
-        <div className="flex gap-2">
-          <div style={{ height: 18, width: 60, ...fill }} />
-          <div style={{ height: 18, width: 52, ...fill }} />
+      <div
+        className="flex flex-col gap-3 p-4 pb-3 flex-1 animate-pulse"
+        style={{ animationDelay: delay }}
+      >
+        <div style={{ height: 14, width: '58%', borderRadius: 2, ...fill }} />
+
+        {/* Member tags: circle avatar + name, matching MemberTag */}
+        <div className="flex items-center gap-2 flex-wrap" style={{ minHeight: 16 }}>
+          <div className="flex items-center gap-1.5">
+            <div style={{ width: 16, height: 16, borderRadius: '999px', ...fill }} />
+            <div style={{ width: 44, height: 8, borderRadius: 2, ...fill }} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div style={{ width: 16, height: 16, borderRadius: '999px', ...fill }} />
+            <div style={{ width: 36, height: 8, borderRadius: 2, ...fill }} />
+          </div>
         </div>
+
         <div
           className="flex items-center justify-between pt-1 mt-auto"
           style={{ borderTop: `1px solid ${c.borderLight}` }}
         >
-          <div style={{ height: 10, width: 112, ...fill }} />
-          <div className="flex gap-3">
-            <div style={{ height: 12, width: 12, ...fill }} />
-            <div style={{ height: 12, width: 12, ...fill }} />
+          <div style={{ height: 9, width: 112, borderRadius: 2, ...fill }} />
+          <div className="flex items-center justify-center gap-0.5" style={{ width: 22, height: 22 }}>
+            {[0, 1, 2].map(dot => (
+              <div key={dot} style={{ width: 3, height: 3, borderRadius: '999px', ...fill }} />
+            ))}
           </div>
         </div>
       </div>
     </div>
   )
 }
-
