@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [decks, setDecks] = useState([])
   const [members, setMembers] = useState([])
   const [loadingDecks, setLoadingDecks] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editDeck, setEditDeck] = useState(null)
   const [deleteDeck, setDeleteDeck] = useState(null)
@@ -30,14 +31,34 @@ export default function Dashboard() {
 
   useEffect(() => { fetchAll() }, [])
 
-  async function fetchAll() {
-    setLoadingDecks(true)
+  // Fires once on mount, right after the auth session settles. A cold-starting
+  // Supabase DB or a brief network hiccup at that moment used to look identical
+  // to "you have zero decks" — the request would fail, decks stayed [], and the
+  // only way out was a full page refresh. Retry a couple of times with backoff
+  // before giving up, and surface an explicit error instead of a fake empty state.
+  async function fetchAll(attempt = 0) {
+    if (attempt === 0) {
+      setLoadingDecks(true)
+      setLoadError(false)
+    }
+
     const [deckRes, memberRes] = await Promise.all([
       supabase.from('decks').select('*').order('date_added', { ascending: false }),
       supabase.from('members').select('*').order('name'),
     ])
-    if (deckRes.data) setDecks(deckRes.data)
-    if (memberRes.data) setMembers(memberRes.data)
+
+    if (deckRes.error || memberRes.error) {
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)))
+        return fetchAll(attempt + 1)
+      }
+      setLoadError(true)
+      setLoadingDecks(false)
+      return
+    }
+
+    setDecks(deckRes.data || [])
+    setMembers(memberRes.data || [])
     setLoadingDecks(false)
   }
 
@@ -124,7 +145,7 @@ export default function Dashboard() {
         <div className="flex items-end justify-between mb-8 pb-4" style={{ borderBottom: `2px solid ${c.accent}` }}>
           <div className="flex items-baseline gap-3">
             <h1 className="font-display text-3xl font-bold tracking-tight" style={{ color: c.text }}>Decks</h1>
-            {!loadingDecks && (
+            {!loadingDecks && !loadError && (
               <span className="text-xs" style={{ color: c.muted }}>{decks.length}</span>
             )}
           </div>
@@ -143,6 +164,18 @@ export default function Dashboard() {
             {[...Array(6)].map((_, i) => (
               <DeckCardSkeleton key={i} dark={dark} delay={`${i * 80}ms`} />
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <p className="text-sm font-medium mb-2" style={{ color: c.text }}>Couldn't load decks</p>
+            <p className="text-sm mb-8" style={{ color: c.muted }}>There was a problem reaching the database. Please try again.</p>
+            <button
+              onClick={() => fetchAll()}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold"
+              style={{ background: c.text, color: c.bg }}
+            >
+              Retry
+            </button>
           </div>
         ) : decks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
