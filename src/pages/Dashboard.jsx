@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, LogOut, Sun, Moon, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { theme } from '../lib/theme'
 import DeckCard from '../components/DeckCard'
@@ -13,6 +14,7 @@ import DeleteMemberDialog from '../components/DeleteMemberDialog'
 
 export default function Dashboard() {
   const { dark, setDark } = useTheme()
+  const { session } = useAuth()
   const c = theme(dark)
 
   const [decks, setDecks] = useState([])
@@ -29,10 +31,18 @@ export default function Dashboard() {
   const [deleteMemberLoading, setDeleteMemberLoading] = useState(false)
   const [showLogout, setShowLogout] = useState(false)
 
-  useEffect(() => { fetchAll() }, [])
+  // Keyed on the access token, not just mount: the session restored from storage
+  // can still carry an expired token, and a request made with one comes back as
+  // zero rows rather than an error (RLS just filters everything out) — which is
+  // indistinguishable from "you have no decks". When the refreshed token lands a
+  // moment later this re-runs and the real data fills in, instead of stranding
+  // the page on an empty state until a manual browser refresh.
+  useEffect(() => {
+    if (!session?.access_token) return
+    fetchAll()
+  }, [session?.access_token])
 
-  // Fires once on mount, right after the auth session settles. A cold-starting
-  // Supabase DB or a brief network hiccup at that moment used to look identical
+  // A cold-starting Supabase DB or a brief network hiccup used to look identical
   // to "you have zero decks" — the request would fail, decks stayed [], and the
   // only way out was a full page refresh. Retry a couple of times with backoff
   // before giving up, and surface an explicit error instead of a fake empty state.
